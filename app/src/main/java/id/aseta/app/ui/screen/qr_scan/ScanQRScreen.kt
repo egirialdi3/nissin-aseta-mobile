@@ -1,6 +1,7 @@
 package id.aseta.app.ui.screen.qr_scan
 
 import android.content.Context
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.camera.core.Camera
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -103,7 +105,10 @@ import android.graphics.Rect as AndroidRect
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ModalBottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.SecureFlagPolicy
 
 
 @androidx.annotation.OptIn(ExperimentalGetImage::class)
@@ -120,6 +125,7 @@ fun ScanQRScreen(
     val flashlightEnabled = remember { mutableStateOf(false) }
     var cameraRef by remember { mutableStateOf<Camera?>(null) }
     var showSheet by remember { mutableStateOf(false) }
+    var sheetVisible by remember { mutableStateOf(false) }
     var asset by remember { mutableStateOf<AssetDetail?>(null) }
     var isCameraActive by remember { mutableStateOf(true) }
     var focusBoxRect by remember { mutableStateOf<Rect?>(null) }
@@ -448,8 +454,21 @@ fun ScanQRScreen(
 
     }
 
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
+    LaunchedEffect(showSheet){
+        if (showSheet){
+            isCameraActive = false
+            kotlinx.coroutines.delay(50)
+            sheetVisible = true
+        } else {
+            sheetVisible = false
+        }
+    }
     if (showSheet && asset != null) {
-        isCameraActive = false
+//        isCameraActive = false
         val dismiss = {
             showSheet = false
             isCameraActive = true
@@ -465,19 +484,30 @@ fun ScanQRScreen(
 //                ) {
 //                    AssetBottomSheetContent(asset!!, assetCategoryViewModel, context)
 //                }
-                ModalBottomSheet(
-                    onDismissRequest = dismiss,
-                    sheetState = rememberModalBottomSheetState(
-                        skipPartiallyExpanded = true,  // Pastikan tidak ada state partially expanded
-                    ),
-                    windowInsets = WindowInsets(0),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(0.8f)  // Set tinggi konten menjadi 80% layar
+                if (sheetVisible && asset != null) {
+                    ModalBottomSheet(
+                        onDismissRequest = {
+                            sheetVisible = false
+                            showSheet = false
+                            isCameraActive = true
+                            isProcessingQrCode = false
+                        },
+                        sheetState = sheetState,
+                        windowInsets = WindowInsets(0),
+                        properties = ModalBottomSheetDefaults.properties(
+                            shouldDismissOnBackPress = true,
+                            isFocusable = true,
+                            securePolicy = SecureFlagPolicy.Inherit
+                        )
                     ) {
-                        AssetBottomSheetContent(asset!!, context,assetCategoryViewModel)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(0.8f)  // Set tinggi konten menjadi 80% layar
+                                .pointerInput(Unit) {} // ⬅️ penting
+                        ) {
+                            AssetBottomSheetContent(asset!!, context,assetCategoryViewModel)
+                        }
                     }
                 }
             }
@@ -508,25 +538,16 @@ fun AssetBottomSheetContent(
 //    val tabTitles = listOf("Asset Detail")
 
     val isLoading = viewModel.loadingGetImage[asset.no_register] == true
-//    var imageUrl by remember { mutableStateOf<String?>(null) }
     var imageUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var showImagePreview by remember { mutableStateOf(false) }
 
-//    LaunchedEffect(asset.no_register) {
-//        viewModel.getImageAsset(context, asset.no_register)
-//        val dataUser = TokenDataStore.getDataUser(context)
-//        val namaPrsh = dataUser?.nama_prsh
-////        val imageFile = viewModel.assetFullDetailsMap[asset.no_register]?.firstOrNull()?.images?.firstOrNull()
-////        if (!imageFile.isNullOrBlank() && !namaPrsh.isNullOrBlank()) {
-////            imageUrl = "https://app.aseta.id/api/images/$namaPrsh/$imageFile"
-////        }
-//        val imageFiles = viewModel.assetFullDetailsMap[asset.no_register]?.firstOrNull()?.images ?: emptyList()
-//        println("gambar disini")
-//        println(imageFiles)
-//        if (imageFiles.isNotEmpty() && !namaPrsh.isNullOrBlank()) {
-//            imageUrls = imageFiles.map { "https://app.aseta.id/api/images/$namaPrsh/$it" }
-//        }
-//    }
+    LaunchedEffect(selectedTab) {
+        when (selectedTab) {
+            1 -> viewModel.fetchLogMovingAsset(context, asset.no_register)
+            2 -> viewModel.fetchLogMaintenance(context, asset.no_register)
+        }
+    }
+
 
     LaunchedEffect(selectedTab, viewModel.assetFullDetailsMap[asset.no_register]) {
         if (selectedTab == 0) {
@@ -545,16 +566,11 @@ fun AssetBottomSheetContent(
         }
     }
 
-    LaunchedEffect(selectedTab) {
-        when (selectedTab) {
-            1 -> viewModel.fetchLogMovingAsset(context, asset.no_register)
-            2 -> viewModel.fetchLogMaintenance(context, asset.no_register)
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 300.dp) // ⬅️ ini penting
+            .pointerInput(Unit) {} // ⬅️ penting
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
@@ -802,11 +818,17 @@ private fun TabDetail(
 
 
 @Composable
-private fun TabUserInfo(viewModel: AssetCategoryViewModel) {
+fun TabUserInfo(viewModel: AssetCategoryViewModel) {
+    Log.d("TabUserInfo", "Tab User Info Called")
     val logList = viewModel.allLogMovingAssetList
 
-    if (logList.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Log.d("TabUserInfo", "Log List: $logList")
+    if (viewModel.isLoading){
+        Box(Modifier.fillMaxSize(), Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }else if (logList.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Belum ada data log aset", color = Color.Gray)
         }
     } else {
@@ -838,13 +860,17 @@ private fun TabUserInfo(viewModel: AssetCategoryViewModel) {
 }
 
 @Composable
-private fun TabMaintenanceLog(viewModel: AssetCategoryViewModel) {
+fun TabMaintenanceLog(viewModel: AssetCategoryViewModel) {
+    Log.d("TabMaintenanceLog", "Tab Maintenance Log Called")
     val logList = viewModel.allLogMaintenanceList
 
+    Log.d("TabMaintenanceLog", "Log List: $logList")
     if (logList.isEmpty()) {
+        Log.d("TabMaintenanceLog", "Log List Empty")
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Belum ada data maintenance", color = Color.Gray)
         }
+        Log.d("TabMaintenanceLog", "Log List Empty End")
     } else {
         LazyColumn(
             modifier = Modifier

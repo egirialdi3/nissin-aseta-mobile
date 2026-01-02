@@ -1588,7 +1588,6 @@ class AssetCategoryViewModel : ViewModel() {
     fun fetchLogMaintenance(context: Context, no_register: String) {
         viewModelScope.launch {
             try {
-                isLoading = true
                 val token = TokenDataStore.getToken(context) ?: ""
                 val response = RetrofitClient.api.getRptLogMaintenance(
                     no_register = no_register,
@@ -1597,25 +1596,24 @@ class AssetCategoryViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body?.metadata?.code == 200) {
-                        val data = body.response?.data ?: emptyList()
-                        println("Data berhasil diambil: $data")
-                        allLogMaintenanceList = data
-                    } else {
-                        println("Metadata code bukan 200: ${body?.metadata?.code}")
-                        errorMessage = "Response code tidak valid"
+                    when (body?.metadata?.code) {
+                        200 -> {
+                            allLogMaintenanceList = body.response?.data.orEmpty()
+                        }
+                        201 -> {
+                            // ✅ data kosong, BUKAN error
+                            allLogMaintenanceList = emptyList()
+                        }
+                        else -> {
+                            // ❗ jangan sentuh errorMessage global
+                            allLogMaintenanceList = emptyList()
+                        }
                     }
-                } else {
-                    val errMsg = response.errorBody()?.string()
-                    println("Error body: $errMsg")
-                    errorMessage = "Server error: $errMsg"
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                println("Response gagal di-parse: ${e.message}")
-                errorMessage = "Gagal mengambil log moving asset: ${e.message}"
+                // ❗ jangan sentuh errorMessage global
+                allLogMaintenanceList = emptyList()
             } finally {
-                isLoading = false
             }
         }
     }
@@ -1626,9 +1624,6 @@ class AssetCategoryViewModel : ViewModel() {
     fun fetchLogMovingAsset(context: Context, no_register: String) {
         viewModelScope.launch {
             try {
-                println("cekk masukk")
-                println("No Register: $no_register")
-                isLoading = true
                 val token = TokenDataStore.getToken(context) ?: ""
                 val response = RetrofitClient.api.getRptLogMovingAsset(
                     no_register = no_register,
@@ -1637,25 +1632,22 @@ class AssetCategoryViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body?.metadata?.code == 200) {
-                        val data = body.response?.data ?: emptyList()
-                        println("Data berhasil diambil: $data")
-                        allLogMovingAssetList = data
-                    } else {
-                        println("Metadata code bukan 200: ${body?.metadata?.code}")
-                        errorMessage = "Response code tidak valid"
+                    when (body?.metadata?.code) {
+                        200 -> {
+                            allLogMovingAssetList = body.response?.data.orEmpty()
+                        }
+                        201 -> {
+                            // ✅ valid empty state
+                            allLogMovingAssetList = emptyList()
+                        }
+                        else -> {
+                            allLogMovingAssetList = emptyList()
+                        }
                     }
-                } else {
-                    val errMsg = response.errorBody()?.string()
-                    println("Error body: $errMsg")
-                    errorMessage = "Server error: $errMsg"
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                println("Response gagal di-parse: ${e.message}")
-                errorMessage = "Gagal mengambil log moving asset: ${e.message}"
+                allLogMovingAssetList = emptyList()
             } finally {
-                isLoading = false
             }
         }
     }
