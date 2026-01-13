@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -214,7 +215,7 @@ fun HomeScreen(viewModel: AuthViewModel, uhfViewModel: UHFViewModel,assetCategor
                     .background(Color(0xff1C4488))
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.head_main),
+                    painter = painterResource(id = R.drawable.nissin_logo2),
                     contentDescription = "Head",
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -234,6 +235,7 @@ fun HomeScreen(viewModel: AuthViewModel, uhfViewModel: UHFViewModel,assetCategor
                             Image(
                                 painter = painterResource(id = R.drawable.ic_option),
                                 contentDescription = "Option",
+                                colorFilter = ColorFilter.tint(Color.White),
                                 modifier = Modifier
                                     .size(24.dp)
                                     .clickable { showDropdown = true }
